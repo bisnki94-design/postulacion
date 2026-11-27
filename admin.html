@@ -294,7 +294,7 @@
     if ((p.empresas_anteriores || []).length) L.push("Empresas anteriores: " + p.empresas_anteriores.join(", "));
     if ($("inclAnt").checked) L.push("Antecedentes penales: " + (p.sin_antecedentes ? "Libre" : "No libre") + " (declarado por el postulante, no verificado)");
     if ($("inclPhone").checked) L.push("Teléfono: " + p.telefono);
-    if ($("inclCed").checked) L.push("Cédula: " + p.cedula);
+    if ($("inclCed").checked && p.cedula) L.push("Cédula: " + p.cedula);
     return L.join("\n");
   }
   function waLink(tel) {
