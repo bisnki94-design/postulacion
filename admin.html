@@ -97,7 +97,33 @@
     </form>
   </section>
 
-  <div id="app" hidden>
+  <div id="app" hidden style="display:flex;flex-direction:column;gap:16px">
+    <div class="row" id="tabs">
+      <button type="button" class="primary" id="tabPost">Postulantes</button>
+      <button type="button" id="tabSol">Trámites de carnet <span id="solBadge" class="muted"></span></button>
+    </div>
+
+    <div id="vSol" hidden style="display:flex;flex-direction:column;gap:16px">
+      <section class="panel" aria-label="Filtros de trámites">
+        <div class="row">
+          <input id="sq" type="search" placeholder="Buscar por nombre, cédula, teléfono o ciudad">
+          <select id="sEstado" aria-label="Estado">
+            <option value="">Todos los estados</option><option value="nueva">Nueva</option><option value="en_proceso">En proceso</option><option value="lista">Lista</option><option value="entregada">Entregada</option>
+          </select>
+          <select id="sTipo" aria-label="Trámite">
+            <option value="">Todos los trámites</option><option value="renovacion|guardia">Renovación · Guardia</option><option value="renovacion|escolta">Renovación · Escolta</option><option value="primera_vez|guardia">Primera vez · Guardia</option><option value="primera_vez|escolta">Primera vez · Escolta</option>
+          </select>
+          <label class="check"><input id="sImpago" type="checkbox"> Solo sin pagar</label>
+        </div>
+      </section>
+      <div class="row" style="justify-content: space-between">
+        <span class="count" id="sCount"></span>
+        <button type="button" id="sRefresh">Actualizar</button>
+      </div>
+      <div id="sGrid" class="grid"></div>
+    </div>
+
+    <div id="vPost" style="display:flex;flex-direction:column;gap:16px">
     <section class="panel" aria-label="Filtros">
       <div class="row">
         <input id="q" type="search" placeholder="Buscar por nombre, ciudad, barrio, dirección o teléfono">
@@ -147,6 +173,7 @@
 
     <div id="grid" class="grid"></div>
     <div class="row" style="justify-content:center"><button type="button" id="more" hidden>Ver más</button></div>
+    </div>
   </div>
 </main>
 
@@ -170,7 +197,7 @@
   // ============================================================
 
   var $ = function (id) { return document.getElementById(id); };
-  var sb = null, people = [], ciudades = [], barriosDB = [], shown = [], limit = 60, PAGE = 60;
+  var sb = null, solOK = true, sols = [], people = [], ciudades = [], barriosDB = [], shown = [], limit = 60, PAGE = 60;
 
   function norm(s) { return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim(); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
@@ -203,7 +230,7 @@
       $("pass").value = ""; enter(r.data.session);
     });
   });
-  $("logout").addEventListener("click", function () { sb.auth.signOut().then(function () { people = []; showLogin(); }); });
+  $("logout").addEventListener("click", function () { sb.auth.signOut().then(function () { people = []; sols = []; showLogin(); }); });
 
   function enter(session) {
     $("login").hidden = true; $("app").hidden = false; $("logout").hidden = false;
@@ -231,9 +258,11 @@
     Promise.all([
       fetchAll("postulantes", "*", "creado_en", false),
       fetchAll("ciudades", "id,nombre,departamento_id", "nombre", true),
-      fetchAll("barrios", "id,ciudad_id,nombre", "nombre", true)
+      fetchAll("barrios", "id,ciudad_id,nombre", "nombre", true),
+      fetchAll("solicitudes", "*", "creado_en", false).catch(function () { return null; })
     ]).then(function (r) {
       people = r[0]; ciudades = r[1]; barriosDB = r[2];
+      solOK = r[3] !== null; sols = r[3] || []; renderSol();
       limit = PAGE; llenarFiltros(); render(); armarNuevos();
     }).catch(function () {
       $("count").textContent = "No se pudieron cargar los datos. Probá Actualizar o entrá de nuevo.";
@@ -385,6 +414,89 @@
       llenarFiltros(); render(); armarNuevos(); toast("Ficha eliminada");
     });
   });
+
+  // ---------- Trámites de carnet ----------
+  var SERV = { renovacion: "Renovación de carnet", primera_vez: "Primera vez" };
+  var CAT = { guardia: "Guardia de seguridad", escolta: "Escolta" };
+  var EST = { nueva: "Nueva", en_proceso: "En proceso", lista: "Lista", entregada: "Entregada" };
+  // Mensaje que se abre en WhatsApp al tocar "Escribir". {nombre}, {servicio} y {precio} se completan solos.
+  var MSG_SOL = "Hola {nombre}, te escribimos de Guardias Paraguay por tu solicitud de {servicio} ({precio}). Para avanzar necesitamos: antecedente policial, fotocopia de cédula de identidad y foto tipo carnet. El tiempo aproximado para retirar es de 15 días. El pago puede ser en efectivo o por transferencia.";
+  function gs(n) { return "Gs. " + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "."); }
+  function fmtDia(s) { var p = String(s || "").split("-"); return p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : ""; }
+  function servTxt(s) { return (SERV[s.tipo] || s.tipo) + " · " + (CAT[s.categoria] || s.categoria); }
+  function solVisibles() {
+    var q = norm($("sq").value), es = $("sEstado").value, tp = $("sTipo").value, imp = $("sImpago").checked;
+    return sols.filter(function (s) {
+      if (q && norm(s.nombres + " " + s.apellidos + " " + s.cedula + " " + s.telefono + " " + s.ciudad).indexOf(q) < 0) return false;
+      if (es && s.estado !== es) return false;
+      if (tp && (s.tipo + "|" + s.categoria) !== tp) return false;
+      if (imp && s.pagado) return false;
+      return true;
+    });
+  }
+  function renderSol() {
+    var nuevas = sols.filter(function (s) { return s.estado === "nueva"; }).length;
+    $("solBadge").textContent = solOK && nuevas ? "(" + nuevas + " nuevas)" : "";
+    if (!solOK) { $("sCount").textContent = "Todavía no está creada la tabla de trámites. Corré solicitudes.sql en Supabase."; $("sGrid").innerHTML = ""; return; }
+    var list = solVisibles();
+    $("sCount").textContent = list.length + " de " + sols.length + (sols.length === 1 ? " solicitud" : " solicitudes");
+    if (!list.length) { $("sGrid").innerHTML = '<div class="empty">No hay solicitudes con esos filtros.</div>'; return; }
+    $("sGrid").innerHTML = list.map(function (s) {
+      var nombre = (s.nombres + " " + s.apellidos).replace(/\s+/g, " ").trim();
+      var msg = MSG_SOL.replace("{nombre}", s.nombres).replace("{servicio}", servTxt(s).toLowerCase()).replace("{precio}", gs(s.precio_gs));
+      return '<article class="fcard">'
+        + '<div class="head"><div class="tag">' + esc(servTxt(s)) + '</div><h2>' + esc(nombre) + '</h2><div class="sub">' + esc(gs(s.precio_gs)) + " · " + fmtDate(s.creado_en) + "</div></div>"
+        + "<dl><dt>Cédula</dt><dd>" + esc(s.cedula) + "</dd>"
+        + "<dt>Ciudad</dt><dd>" + esc(s.ciudad) + "</dd>"
+        + (s.empresa ? "<dt>Empresa</dt><dd>" + esc(s.empresa) + "</dd>" : "")
+        + (s.vencimiento ? "<dt>Vence el carnet</dt><dd>" + fmtDia(s.vencimiento) + "</dd>" : "")
+        + (s.nota ? "<dt>Nota</dt><dd>" + esc(s.nota) + "</dd>" : "")
+        + "</dl>"
+        + '<div class="contact"><span>Contacto: <b>' + esc(s.telefono) + '</b></span><a href="' + waLink(s.telefono) + "?text=" + encodeURIComponent(msg) + '" target="_blank" rel="noopener">Escribir por WhatsApp</a></div>'
+        + '<div class="actions">'
+        + '<select data-sest="' + esc(s.id) + '" aria-label="Estado">' + Object.keys(EST).map(function (k) { return '<option value="' + k + '"' + (s.estado === k ? " selected" : "") + ">" + EST[k] + "</option>"; }).join("") + "</select>"
+        + '<label class="check"><input type="checkbox" data-spag="' + esc(s.id) + '"' + (s.pagado ? " checked" : "") + "> Pagado</label>"
+        + '<button class="small" type="button" data-sdel="' + esc(s.id) + '">Eliminar</button></div>'
+        + "</article>";
+    }).join("");
+  }
+  ["sq", "sEstado", "sTipo", "sImpago"].forEach(function (id) { $(id).addEventListener(id === "sq" ? "input" : "change", renderSol); });
+  $("sRefresh").addEventListener("click", function () {
+    fetchAll("solicitudes", "*", "creado_en", false).then(function (r) { solOK = true; sols = r; renderSol(); toast("Actualizado"); })
+      .catch(function () { solOK = false; sols = []; renderSol(); });
+  });
+  function guardarSol(id, cambios, ok) {
+    sb.from("solicitudes").update(cambios).eq("id", id).then(function (r) {
+      if (r.error) { toast("No se pudo guardar. Probá de nuevo."); renderSol(); return; }
+      sols.forEach(function (s) { if (s.id === id) Object.keys(cambios).forEach(function (k) { s[k] = cambios[k]; }); });
+      renderSol(); toast(ok);
+    });
+  }
+  $("sGrid").addEventListener("change", function (e) {
+    var t = e.target;
+    if (t.getAttribute("data-sest")) guardarSol(t.getAttribute("data-sest"), { estado: t.value }, "Estado: " + EST[t.value]);
+    else if (t.getAttribute("data-spag")) guardarSol(t.getAttribute("data-spag"), { pagado: t.checked }, t.checked ? "Marcado como pagado" : "Marcado como sin pagar");
+  });
+  $("sGrid").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-sdel]"); if (!b) return;
+    if (!b.getAttribute("data-armed")) {
+      b.setAttribute("data-armed", "1"); b.textContent = "Tocá de nuevo para eliminar";
+      setTimeout(function () { if (b.isConnected) { b.removeAttribute("data-armed"); b.textContent = "Eliminar"; } }, 4000);
+      return;
+    }
+    var id = b.getAttribute("data-sdel");
+    sb.from("solicitudes").delete().eq("id", id).then(function (r) {
+      if (r.error) { toast("No se pudo eliminar. Probá de nuevo."); return; }
+      sols = sols.filter(function (s) { return s.id !== id; }); renderSol(); toast("Solicitud eliminada");
+    });
+  });
+  function verTab(sol) {
+    $("vSol").hidden = !sol; $("vPost").hidden = sol;
+    $("tabSol").className = sol ? "primary" : ""; $("tabPost").className = sol ? "" : "primary";
+  }
+  $("tabPost").addEventListener("click", function () { verTab(false); });
+  $("tabSol").addEventListener("click", function () { verTab(true); });
+  verTab(false);
 
   // ---------- Currículum con los datos de la ficha ----------
   // Los datos viajan por este mismo navegador (se borran apenas los lee el generador, o a los 10 minutos).
