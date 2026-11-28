@@ -51,6 +51,8 @@
   .btn.red { background: var(--accent); border-color: var(--accent); color: #fff; }
   .btn.green { background: var(--ok); border-color: var(--ok); color: #fff; }
   .btn:disabled { opacity: .6; cursor: wait; }
+  .f label.chk { display: flex; align-items: center; gap: 8px; font-weight: 400; margin: 8px 0 0; }
+  .chk input { width: 20px; height: 20px; accent-color: var(--accent); }
   .jobhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: 700; }
 
   .preview { position: sticky; top: 12px; }
@@ -80,9 +82,8 @@
   #cv td.l { width: 240px; font-weight: 700; }
   #cv td.c { width: 28px; font-weight: 700; }
   #cv .job1 { margin: 10px 0 0 0; }
-  #cv .co { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 10px; }
-  #cv .arr { display: inline-block; border-left: 11px solid #000; border-top: 6px solid transparent; border-bottom: 6px solid transparent; flex: none; }
-  #cv .job1 table { margin-top: 4px; }
+  #cv .co { font-weight: 700; font-size: 16px; margin-left: 40px; }
+  #cv .job1 table { margin-top: 4px; margin-left: 62px; width: calc(100% - 62px); }
   #cv .job1 td { text-transform: none; font-size: 14.5px; }
   #cv .job1 td.l { font-weight: 400; width: 120px; }
   #cv .job1 td.c { font-weight: 400; }
@@ -192,7 +193,36 @@
 
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function v(id) { return $(id).value.replace(/\s+/g, " ").trim(); }
-  function nuevoTrabajo() { return { empresa: "", cargo: "Guardia de seguridad", tiempo: "" }; }
+  var MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  function nuevoTrabajo() { return { empresa: "", cargo: "Guardia de seguridad", dm: "", da: "", hm: "", ha: "", actual: false }; }
+  function selMes(i, k, val, off) {
+    return '<select data-i="' + i + '" data-k="' + k + '"' + (off ? " disabled" : "") + '><option value="">Mes</option>' +
+      MESES.map(function (m) { return "<option" + (m === val ? " selected" : "") + ">" + m + "</option>"; }).join("") + "</select>";
+  }
+  function selAnio(i, k, val, off) {
+    var y = new Date().getFullYear(), o = '<select data-i="' + i + '" data-k="' + k + '"' + (off ? " disabled" : "") + '><option value="">Año</option>';
+    for (var a = y; a >= 1975; a--) o += "<option" + (String(a) === String(val) ? " selected" : "") + ">" + a + "</option>";
+    return o + "</select>";
+  }
+  // Primera letra de cada palabra en mayúscula (sin tocar el resto); SA, SRL, etc. en mayúsculas; "de", "la", "y"... en minúscula
+  function mayus(s) {
+    var peq = { de: 1, del: 1, la: 1, las: 1, los: 1, el: 1, y: 1, e: 1 };
+    var sig = { sa: "SA", srl: "SRL", eas: "EAS", saeca: "SAECA", ltda: "LTDA", "s.a.": "S.A.", "s.r.l.": "S.R.L.", "e.a.s.": "E.A.S." };
+    return String(s || "").trim().split(/\s+/).map(function (w, i) {
+      var l = w.toLowerCase();
+      if (sig[l]) return sig[l];
+      if (i > 0 && peq[l]) return l;
+      return w.charAt(0).toUpperCase() + w.slice(1);
+    }).join(" ");
+  }
+  function periodo(j) {
+    var d = [j.dm, j.da].filter(Boolean).join(" ");
+    var h = j.actual ? "Actualidad" : [j.hm, j.ha].filter(Boolean).join(" ");
+    if (d && h) return d + " – " + h;
+    if (d) return "Desde " + d;
+    if (h) return "Hasta " + h;
+    return "";
+  }
 
   function perfilBase() {
     var e = parseInt($("edad").value, 10);
@@ -217,14 +247,20 @@
       d.innerHTML =
         '<div class="jobhead"><span>Experiencia ' + (i + 1) + '</span>' + (jobs.length > 1 ? '<button type="button" class="btn small" data-del="' + i + '">Quitar</button>' : "") + "</div>" +
         '<div class="f"><label>Empresa</label><input type="text" maxlength="80" data-i="' + i + '" data-k="empresa" value="' + esc(j.empresa) + '"></div>' +
-        '<div class="row2"><div class="f"><label>Cargo</label><input type="text" maxlength="60" data-i="' + i + '" data-k="cargo" value="' + esc(j.cargo) + '"></div>' +
-        '<div class="f"><label>Tiempo</label><input type="text" maxlength="60" data-i="' + i + '" data-k="tiempo" placeholder="Ej.: Enero 2020 – Mayo 2022" value="' + esc(j.tiempo) + '"></div></div>';
+        '<div class="f"><label>Cargo</label><input type="text" maxlength="60" data-i="' + i + '" data-k="cargo" value="' + esc(j.cargo) + '"></div>' +
+        '<div class="f"><label>Desde (mes y año en que empezó)</label><div class="row2">' + selMes(i, "dm", j.dm) + selAnio(i, "da", j.da) + "</div></div>" +
+        '<div class="f"><label>Hasta (mes y año en que terminó)</label><div class="row2">' + selMes(i, "hm", j.hm, j.actual) + selAnio(i, "ha", j.ha, j.actual) + "</div>" +
+        '<label class="chk"><input type="checkbox" data-i="' + i + '" data-k="actual"' + (j.actual ? " checked" : "") + "> Sigo trabajando aquí</label></div>";
       box.appendChild(d);
     });
   }
   $("jobs").addEventListener("input", function (e) {
     var t = e.target, i = t.getAttribute("data-i"); if (i === null) return;
-    jobs[+i][t.getAttribute("data-k")] = t.value; dibujar();
+    if (t.type === "checkbox") {
+      jobs[+i].actual = t.checked;
+      [].slice.call(t.closest(".job").querySelectorAll('select[data-k="hm"],select[data-k="ha"]')).forEach(function (s) { s.disabled = t.checked; });
+    } else jobs[+i][t.getAttribute("data-k")] = t.value;
+    dibujar();
   });
   $("jobs").addEventListener("click", function (e) {
     var i = e.target.getAttribute("data-del"); if (i === null) return;
@@ -258,8 +294,8 @@
     if (js.length) {
       h += "<h3>Experiencia laboral:</h3>";
       js.forEach(function (j) {
-        h += '<div class="job1"><div class="co"><span class="arr"></span><span>“' + esc(j.empresa.trim()) + '”</span></div><table>' +
-          fila("Cargo", j.cargo.trim()) + fila("Tiempo", j.tiempo.trim()) + "</table></div>";
+        h += '<div class="job1"><div class="co">' + esc(mayus(j.empresa)) + '</div><table>' +
+          fila("Cargo", j.cargo.trim()) + fila("Tiempo", periodo(j)) + "</table></div>";
       });
     }
     $("cv").innerHTML = h;
