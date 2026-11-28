@@ -338,6 +338,7 @@
         + '<div class="contact"><span>Contacto: <b>' + esc(p.telefono) + '</b></span><a href="' + waLink(p.telefono) + '" target="_blank" rel="noopener">Abrir WhatsApp</a></div>'
         + '<div class="actions"><button class="primary small" type="button" data-copy="' + i + '">Copiar ficha</button>'
         + '<a class="btn" href="https://wa.me/?text=' + encodeURIComponent(fichaText(p)) + '" target="_blank" rel="noopener">Enviar por WhatsApp</a>'
+        + '<button class="small" type="button" data-cv="' + i + '">Armar currículum</button>'
         + '<button class="small" type="button" data-del="' + i + '">Eliminar</button></div>'
         + "</article>";
     }).join("");
@@ -369,6 +370,8 @@
   $("grid").addEventListener("click", function (e) {
     var c = e.target.closest("[data-copy]");
     if (c) { copy(fichaText(shown[+c.getAttribute("data-copy")]), "Ficha copiada"); return; }
+    var cv = e.target.closest("[data-cv]");
+    if (cv) { armarCV(shown[+cv.getAttribute("data-cv")]); return; }
     var b = e.target.closest("[data-del]"); if (!b) return;
     if (!b.getAttribute("data-armed")) {
       b.setAttribute("data-armed", "1"); b.textContent = "Tocá de nuevo para eliminar";
@@ -382,6 +385,20 @@
       llenarFiltros(); render(); armarNuevos(); toast("Ficha eliminada");
     });
   });
+
+  // ---------- Currículum con los datos de la ficha ----------
+  // Los datos viajan por este mismo navegador (se borran apenas los lee el generador, o a los 10 minutos).
+  function armarCV(p) {
+    if (!p) return;
+    var d = {
+      t: Date.now(), nombre: fullName(p), cel: p.telefono || "", ci: p.cedula || "", edad: p.edad,
+      ciu: p.ciudad || "", bar: p.barrio || "", dir: p.direccion || "",
+      educacion: p.educacion || "", empresas: p.empresas_anteriores || []
+    };
+    try { localStorage.setItem("gp_cv_prefill", JSON.stringify(d)); }
+    catch (e) { toast("Este navegador no deja pasar los datos. Abrí el generador y cargalos a mano."); return; }
+    if (!window.open("curriculum.html", "_blank")) location.href = "curriculum.html";
+  }
 
   // ---------- Barrios nuevos ----------
   function armarNuevos() {
