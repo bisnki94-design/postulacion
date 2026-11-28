@@ -139,7 +139,11 @@
       </div>
       <div class="row2">
         <div class="f"><label for="nacion">Nacionalidad</label><input id="nacion" type="text" value="Paraguaya" maxlength="30"></div>
-        <div class="f"><label for="dom">Ciudad / barrio <span class="hint">(opcional)</span></label><input id="dom" type="text" maxlength="80"></div>
+        <div class="f"><label for="ciu">Ciudad <span class="hint">(opcional)</span></label><input id="ciu" type="text" maxlength="60"></div>
+      </div>
+      <div class="row2">
+        <div class="f"><label for="bar">Barrio <span class="hint">(opcional)</span></label><input id="bar" type="text" maxlength="60"></div>
+        <div class="f"><label for="dir">Dirección <span class="hint">(opcional)</span></label><input id="dir" type="text" maxlength="80" placeholder="Calle y número"></div>
       </div>
     </div>
 
@@ -161,6 +165,12 @@
       <h2>Experiencia laboral</h2>
       <div id="jobs"></div>
       <button type="button" class="btn small" id="addJob">+ Agregar otra experiencia</button>
+    </div>
+
+    <div class="card">
+      <h2>Referencias personales</h2>
+      <div id="refs"></div>
+      <button type="button" class="btn small" id="addRef">+ Agregar otra referencia</button>
     </div>
 
     <button type="button" class="btn small" id="reset">Empezar de nuevo</button>
@@ -188,13 +198,13 @@
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
-  var CAMPOS = ["nombre","cel","nac","edad","lugar","ci","civil","nacion","dom","perfil","prim","sec","sup","carrera","cursos"];
+  var CAMPOS = ["nombre","cel","nac","edad","lugar","ci","civil","nacion","ciu","bar","dir","perfil","prim","sec","sup","carrera","cursos"];
   var jobs = [], perfilEditado = false;
 
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function v(id) { return $(id).value.replace(/\s+/g, " ").trim(); }
   var MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-  function nuevoTrabajo() { return { empresa: "", cargo: "Guardia de seguridad", dm: "", da: "", hm: "", ha: "", actual: false }; }
+  function nuevoTrabajo() { return { empresa: "", cargo: "Guardia de seguridad", dm: "", da: "", hm: "", ha: "", actual: false, tel: "" }; }
   function selMes(i, k, val, off) {
     return '<select data-i="' + i + '" data-k="' + k + '"' + (off ? " disabled" : "") + '><option value="">Mes</option>' +
       MESES.map(function (m) { return "<option" + (m === val ? " selected" : "") + ">" + m + "</option>"; }).join("") + "</select>";
@@ -248,6 +258,7 @@
         '<div class="jobhead"><span>Experiencia ' + (i + 1) + '</span>' + (jobs.length > 1 ? '<button type="button" class="btn small" data-del="' + i + '">Quitar</button>' : "") + "</div>" +
         '<div class="f"><label>Empresa</label><input type="text" maxlength="80" data-i="' + i + '" data-k="empresa" value="' + esc(j.empresa) + '"></div>' +
         '<div class="f"><label>Cargo</label><input type="text" maxlength="60" data-i="' + i + '" data-k="cargo" value="' + esc(j.cargo) + '"></div>' +
+        '<div class="f"><label>Teléfono de la empresa <span class="hint">(opcional)</span></label><input type="tel" inputmode="tel" maxlength="30" data-i="' + i + '" data-k="tel" value="' + esc(j.tel) + '"></div>' +
         '<div class="f"><label>Desde (mes y año en que empezó)</label><div class="row2">' + selMes(i, "dm", j.dm) + selAnio(i, "da", j.da) + "</div></div>" +
         '<div class="f"><label>Hasta (mes y año en que terminó)</label><div class="row2">' + selMes(i, "hm", j.hm, j.actual) + selAnio(i, "ha", j.ha, j.actual) + "</div>" +
         '<label class="chk"><input type="checkbox" data-i="' + i + '" data-k="actual"' + (j.actual ? " checked" : "") + "> Sigo trabajando aquí</label></div>";
@@ -268,6 +279,30 @@
   });
   $("addJob").addEventListener("click", function () { if (jobs.length < 8) { jobs.push(nuevoTrabajo()); dibujarJobs(); } });
 
+  // ---------- Referencias personales ----------
+  var refs = [];
+  function nuevaRef() { return { nombre: "", cel: "" }; }
+  function dibujarRefs() {
+    var box = $("refs"); box.innerHTML = "";
+    refs.forEach(function (r, i) {
+      var d = document.createElement("div"); d.className = "job";
+      d.innerHTML =
+        '<div class="jobhead"><span>Referencia ' + (i + 1) + '</span>' + (refs.length > 1 ? '<button type="button" class="btn small" data-delr="' + i + '">Quitar</button>' : "") + "</div>" +
+        '<div class="f"><label>Nombre y apellido</label><input type="text" maxlength="80" data-r="' + i + '" data-k="nombre" value="' + esc(r.nombre) + '"></div>' +
+        '<div class="f"><label>Celular</label><input type="tel" inputmode="tel" maxlength="20" data-r="' + i + '" data-k="cel" value="' + esc(r.cel) + '"></div>';
+      box.appendChild(d);
+    });
+  }
+  $("refs").addEventListener("input", function (e) {
+    var t = e.target, i = t.getAttribute("data-r"); if (i === null) return;
+    refs[+i][t.getAttribute("data-k")] = t.value; dibujar();
+  });
+  $("refs").addEventListener("click", function (e) {
+    var i = e.target.getAttribute("data-delr"); if (i === null) return;
+    refs.splice(+i, 1); if (!refs.length) refs.push(nuevaRef()); dibujarRefs(); dibujar();
+  });
+  $("addRef").addEventListener("click", function () { if (refs.length < 4) { refs.push(nuevaRef()); dibujarRefs(); } });
+
   // ---------- Hoja ----------
   function fila(l, val) { return val ? '<tr><td class="l">' + esc(l) + '</td><td class="c">:</td><td>' + esc(val) + "</td></tr>" : ""; }
   function dibujar() {
@@ -281,7 +316,7 @@
 
     var e = parseInt($("edad").value, 10);
     var dp = fila("Fecha de nacimiento", fechaLarga($("nac").value)) + fila("Lugar de nacimiento", v("lugar")) + fila("Cédula de identidad", v("ci")) +
-      fila("Estado civil", v("civil")) + fila("Edad", e > 0 ? e + " años" : "") + fila("Nacionalidad", v("nacion")) + fila("Ciudad / barrio", v("dom"));
+      fila("Estado civil", v("civil")) + fila("Edad", e > 0 ? e + " años" : "") + fila("Nacionalidad", v("nacion")) + fila("Ciudad", v("ciu")) + fila("Barrio", v("bar")) + fila("Dirección", v("dir"));
     if (dp) h += "<h3>Datos personales:</h3><table>" + dp + "</table>";
 
     var es = fila("Educación primaria", v("prim")) + fila("Educación secundaria", v("sec")) + fila("Educación superior", v("sup")) + fila("Carrera", v("carrera"));
@@ -295,7 +330,14 @@
       h += "<h3>Experiencia laboral:</h3>";
       js.forEach(function (j) {
         h += '<div class="job1"><div class="co">' + esc(mayus(j.empresa)) + '</div><table>' +
-          fila("Cargo", j.cargo.trim()) + fila("Tiempo", periodo(j)) + "</table></div>";
+          fila("Cargo", j.cargo.trim()) + fila("Tiempo", periodo(j)) + fila("Teléfono", (j.tel || "").trim()) + "</table></div>";
+      });
+    }
+    var rs = refs.filter(function (r) { return r.nombre.trim(); });
+    if (rs.length) {
+      h += "<h3>Referencias personales:</h3>";
+      rs.forEach(function (r) {
+        h += '<div class="job1"><div class="co">' + esc(mayus(r.nombre)) + '</div><table>' + fila("Celular", r.cel.trim()) + "</table></div>";
       });
     }
     $("cv").innerHTML = h;
@@ -321,7 +363,7 @@
   $("reset").addEventListener("click", function () {
     CAMPOS.forEach(function (id) { $(id).value = ""; });
     $("nacion").value = "Paraguaya"; perfilEditado = false; $("perfil").value = perfilBase();
-    jobs = [nuevoTrabajo()]; dibujarJobs(); dibujar(); window.scrollTo({ top: 0, behavior: "smooth" });
+    jobs = [nuevoTrabajo()]; refs = [nuevaRef()]; dibujarJobs(); dibujarRefs(); dibujar(); window.scrollTo({ top: 0, behavior: "smooth" });
   });
 
   // ---------- Exportar ----------
@@ -404,7 +446,7 @@
   $("logout").addEventListener("click", function () { if (sb) sb.auth.signOut(); });
 
   // ---------- Inicio ----------
-  jobs = [nuevoTrabajo()]; $("perfil").value = perfilBase(); dibujarJobs(); dibujar();
+  jobs = [nuevoTrabajo()]; refs = [nuevaRef()]; $("perfil").value = perfilBase(); dibujarJobs(); dibujarRefs(); dibujar();
 })();
 </script>
 </body>
