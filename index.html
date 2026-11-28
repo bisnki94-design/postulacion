@@ -10,8 +10,8 @@
 <meta property="og:site_name" content="Guardias Paraguay">
 <meta property="og:title" content="Postulate para trabajar con nosotros | Guardias Paraguay">
 <meta property="og:description" content="Completá el formulario en línea desde tu celular en pocos minutos.">
-<meta property="og:url" content="https://bisnki94-design.github.io/postulacion/">
-<meta property="og:image" content="https://bisnki94-design.github.io/postulacion/og.png">
+<meta property="og:url" content="https://guardiaspy.online/">
+<meta property="og:image" content="https://guardiaspy.online/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
@@ -235,6 +235,7 @@
       <div class="field" data-f="empresas">
         <span class="q">¿En qué empresas trabajó antes? <span class="hint">Elegí hasta 3</span></span>
         <div class="opts list" id="empresas"></div>
+        <input id="empresaTxt" type="text" placeholder="Escribí el nombre de la empresa (si son varias, separalas con coma)" maxlength="120" hidden style="margin-top:8px">
         <div class="err" hidden></div>
       </div>
 
@@ -338,6 +339,7 @@
     });
     box.addEventListener("change", function (e) {
       var t = e.target; if (t.name !== "empresa") return;
+      if (t.value === "Otra") { $("empresaTxt").hidden = !t.checked; if (!t.checked) $("empresaTxt").value = ""; }
       var all = [].slice.call(box.querySelectorAll("input"));
       if (t.checked && t.value === "Ninguna") all.forEach(function (x) { if (x !== t) x.checked = false; });
       if (t.checked && t.value !== "Ninguna") all.forEach(function (x) { if (x.value === "Ninguna") x.checked = false; });
@@ -439,8 +441,19 @@
     var a = checkedVal("antecedentes");  if (!a) bad("antecedentes", "Elegí una opción."); d.sin_antecedentes = a === "Sí";
     d.disponibilidad = checkedVal("disponibilidad"); if (!d.disponibilidad) bad("disponibilidad", "Elegí una opción.");
 
-    d.empresas_anteriores = [].slice.call(document.querySelectorAll('input[name="empresa"]:checked')).map(function (x) { return x.value; });
-    if ($("empresas").children.length && !d.empresas_anteriores.length) bad("empresas", "Elegí una opción (o \"Ninguna\").");
+    var marc = [].slice.call(document.querySelectorAll('input[name="empresa"]:checked')).map(function (x) { return x.value; });
+    var conOtra = marc.indexOf("Otra") !== -1;
+    d.empresas_anteriores = marc.filter(function (v) { return v !== "Otra"; });
+    if (conOtra) {
+      var escritas = limpiar($("empresaTxt").value).split(/\s*[,;]\s*/).filter(function (x) { return x.length >= 2; });
+      escritas.forEach(function (n) {
+        n = n.slice(0, 60);
+        if (!d.empresas_anteriores.some(function (x) { return x.toLowerCase() === n.toLowerCase(); })) d.empresas_anteriores.push(n);
+      });
+      if (!escritas.length) bad("empresas", "Escribí el nombre de la empresa.");
+    }
+    if (d.empresas_anteriores.length > 3) bad("empresas", "Podés indicar hasta 3 empresas en total.");
+    if ($("empresas").children.length && !marc.length) bad("empresas", "Elegí una opción (o \"Ninguna\").");
 
     if (!$("consent").checked) bad("consent", "Tenés que aceptar para poder postularte.");
     d.acepta_contacto = $("consent").checked;
