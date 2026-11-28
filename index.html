@@ -196,9 +196,8 @@
       </div>
 
       <div class="field" data-f="barrio">
-        <label for="barrio">Barrio o zona <span class="hint">Si no está en la lista, elegí "Otro" y escribilo</span></label>
-        <select id="barrio" disabled><option value="">Elegí primero la ciudad</option></select>
-        <input id="barrioTxt" type="text" placeholder="Escribí tu barrio y la ruta o referencia" maxlength="120" hidden style="margin-top:8px">
+        <label for="barrioTxt">Barrio o compañía <span class="hint">Escribilo como lo conocés. Podés agregar la ruta o una referencia.</span></label>
+        <input id="barrioTxt" type="text" placeholder="Ejemplo: Barrio San Pedro" maxlength="120">
         <div class="err" hidden></div>
       </div>
 
@@ -348,53 +347,26 @@
     });
   }
 
-  // ---------- Cascada departamento > ciudad > barrio ----------
+  // ---------- Cascada departamento > ciudad (el barrio o compañía se escribe) ----------
   $("dep").addEventListener("change", function () {
     var id = this.value, lista = ciudadesPorDep[id] || [];
-    ciudadSel = null;
-    $("ciudad").hidden = false; $("barrio").hidden = false;
-    $("barrioTxt").hidden = true; $("barrioTxt").value = "";
-    setOptions($("barrio"), [], "Elegí primero la ciudad"); $("barrio").disabled = true;
-    if (!id) { setOptions($("ciudad"), [], "Elegí primero el departamento"); $("ciudad").disabled = true; $("ciudadTxt").hidden = true; return; }
+    $("ciudadTxt").value = "";
+    if (!id) {
+      $("ciudad").hidden = false; $("ciudadTxt").hidden = true;
+      setOptions($("ciudad"), [], "Elegí primero el departamento"); $("ciudad").disabled = true; return;
+    }
     if (lista.length) {
-      $("ciudadTxt").hidden = true; $("ciudadTxt").value = "";
+      $("ciudad").hidden = false; $("ciudadTxt").hidden = true;
       setOptions($("ciudad"), lista.map(function (c) { return { value: c.id, label: c.nombre }; }), "Elegí tu ciudad", [{ value: "otra", label: "Otra" }]);
       $("ciudad").disabled = false;
     } else {
-      // departamento sin lista cargada: escriben la ciudad y el barrio
-      setOptions($("ciudad"), [], ""); $("ciudad").disabled = true; $("ciudad").hidden = true;
-      $("ciudadTxt").hidden = false;
-      $("barrio").hidden = true; $("barrioTxt").hidden = false;
-      return;
+      // departamento sin lista cargada: escriben la ciudad
+      setOptions($("ciudad"), [], ""); $("ciudad").disabled = true; $("ciudad").hidden = true; $("ciudadTxt").hidden = false;
     }
-    $("ciudad").hidden = false; $("barrio").hidden = false;
   });
-
   $("ciudad").addEventListener("change", function () {
-    var v = this.value;
-    $("barrioTxt").value = "";
-    if (!v) { setOptions($("barrio"), [], "Elegí primero la ciudad"); $("barrio").disabled = true; $("barrioTxt").hidden = true; $("ciudadTxt").hidden = true; return; }
-    if (v === "otra") {
-      $("ciudadTxt").hidden = false; $("barrio").hidden = true; $("barrioTxt").hidden = false; ciudadSel = null; return;
-    }
-    $("ciudadTxt").hidden = true; $("ciudadTxt").value = "";
-    $("barrio").hidden = false; $("barrioTxt").hidden = true;
-    ciudadSel = v;
-    $("barrio").disabled = true; setOptions($("barrio"), [], "Cargando barrios...");
-    api("barrios?ciudad_id=eq." + encodeURIComponent(v) + "&select=nombre&order=nombre")
-      .then(function (r) { return r.json(); })
-      .then(function (b) {
-        if (ciudadSel !== v) return;
-        setOptions($("barrio"), b.map(function (x) { return { value: x.nombre, label: x.nombre }; }), "Elegí tu barrio o zona", [{ value: "__otro", label: "Otro (escribirlo)" }]);
-        $("barrio").disabled = false;
-      }).catch(function () {
-        setOptions($("barrio"), [], "No se pudo cargar", [{ value: "__otro", label: "Otro (escribirlo)" }]); $("barrio").disabled = false;
-      });
-  });
-
-  $("barrio").addEventListener("change", function () {
-    $("barrioTxt").hidden = this.value !== "__otro";
-    if (this.value !== "__otro") $("barrioTxt").value = "";
+    var otra = this.value === "otra";
+    $("ciudadTxt").hidden = !otra; if (!otra) $("ciudadTxt").value = "";
   });
 
   // ---------- Validación y envío ----------
@@ -428,12 +400,8 @@
       if ($("dep").value && d.ciudad.length < 2) bad("ciudad", "Elegí o escribí tu ciudad.");
     }
 
-    if (!$("barrio").hidden && $("barrio").value && $("barrio").value !== "__otro") {
-      d.barrio = $("barrio").value;
-    } else {
-      d.barrio = limpiar($("barrioTxt").value);
-      if (d.barrio.length < 2) bad("barrio", "Elegí o escribí tu barrio.");
-    }
+    d.barrio = limpiar($("barrioTxt").value);
+    if (d.barrio.length < 2) bad("barrio", "Escribí tu barrio o compañía.");
 
     var g = checkedVal("guardia");       if (!g) bad("guardia", "Elegí una opción."); d.trabajo_guardia = g === "Sí";
     var m = checkedVal("movilidad");     if (!m) bad("movilidad", "Elegí una opción."); d.movilidad_propia = m === "Sí";
