@@ -207,8 +207,14 @@
       </div>
 
       <div class="field" data-f="barrio">
-        <label for="barrioTxt">Barrio o compañía <span class="hint">Escribilo como lo conocés. Podés agregar la ruta o una referencia.</span></label>
-        <input id="barrioTxt" type="text" placeholder="Ejemplo: Barrio San Pedro" maxlength="120">
+        <label for="barrioTxt">Barrio o compañía <span class="hint">Escribilo como lo conocés.</span></label>
+        <input id="barrioTxt" type="text" placeholder="Ejemplo: Barrio San Pedro" maxlength="120" autocomplete="address-level3">
+        <div class="err" hidden></div>
+      </div>
+
+      <div class="field" data-f="direccion">
+        <label for="direccionTxt">Dirección o referencia <span class="hint">Opcional. Calle, ruta, kilómetro o un lugar cercano. Ejemplo: Ruta 2 km 20, cerca de la escuela.</span></label>
+        <input id="direccionTxt" type="text" placeholder="Ejemplo: Calle Mcal. López, casa 123" maxlength="200" autocomplete="street-address">
         <div class="err" hidden></div>
       </div>
 
@@ -375,10 +381,10 @@
     }
     if (lista.length) {
       $("ciudad").hidden = false; $("ciudadTxt").hidden = true;
-      setOptions($("ciudad"), lista.map(function (c) { return { value: c.id, label: c.nombre }; }), "Elegí tu ciudad", [{ value: "otra", label: "Otra" }]);
+      setOptions($("ciudad"), lista.map(function (c) { return { value: c.id, label: c.nombre }; }), "Elegí tu ciudad");
       $("ciudad").disabled = false;
     } else {
-      // departamento sin lista cargada: escriben la ciudad
+      // por seguridad: si un departamento no tuviera municipios cargados, escriben la ciudad
       setOptions($("ciudad"), [], ""); $("ciudad").disabled = true; $("ciudad").hidden = true; $("ciudadTxt").hidden = false;
     }
   });
@@ -420,6 +426,9 @@
 
     d.barrio = limpiar($("barrioTxt").value);
     if (d.barrio.length < 2) bad("barrio", "Escribí tu barrio o compañía.");
+
+    var dir = limpiar($("direccionTxt").value).slice(0, 200);
+    if (dir) d.direccion = dir; // opcional: solo se envía si la persona la escribió
 
     var g = checkedVal("guardia");       if (!g) bad("guardia", "Elegí una opción."); d.trabajo_guardia = g === "Sí";
     var m = checkedVal("movilidad");     if (!m) bad("movilidad", "Elegí una opción."); d.movilidad_propia = m === "Sí";

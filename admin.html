@@ -100,7 +100,7 @@
   <div id="app" hidden>
     <section class="panel" aria-label="Filtros">
       <div class="row">
-        <input id="q" type="search" placeholder="Buscar por nombre, ciudad, barrio o teléfono">
+        <input id="q" type="search" placeholder="Buscar por nombre, ciudad, barrio, dirección o teléfono">
         <select id="city" aria-label="Ciudad"></select>
         <select id="barrio" aria-label="Barrio"></select>
         <select id="avail" aria-label="Disponibilidad">
@@ -124,6 +124,7 @@
         <label class="check"><input id="inclPhone" type="checkbox" checked> Teléfono</label>
         <label class="check"><input id="inclAnt" type="checkbox"> Antecedentes (declarados)</label>
         <label class="check"><input id="inclCed" type="checkbox"> Cédula</label>
+        <label class="check"><input id="inclDir" type="checkbox"> Dirección</label>
       </div>
     </section>
 
@@ -275,7 +276,7 @@
     var desde = w ? Date.now() - (w === 1 ? 24 : w * 24) * 3600 * 1000 : 0;
     if (w === 1) { var d0 = new Date(); d0.setHours(0, 0, 0, 0); desde = d0.getTime(); }
     return people.filter(function (p) {
-      if (q && norm(fullName(p) + " " + p.ciudad + " " + (p.barrio || "") + " " + p.telefono).indexOf(q) < 0) return false;
+      if (q && norm(fullName(p) + " " + p.ciudad + " " + (p.barrio || "") + " " + (p.direccion || "") + " " + p.telefono).indexOf(q) < 0) return false;
       if (city && norm(p.ciudad) !== city) return false;
       if (bar && norm(p.barrio) !== bar) return false;
       if (av && p.disponibilidad !== av) return false;
@@ -292,6 +293,7 @@
   function fichaText(p) {
     var L = ["FICHA DE POSTULANTE", "Nombre: " + fullName(p), "Edad: " + p.edad + " años", "Ciudad: " + p.ciudad];
     if (p.barrio) L.push("Barrio / zona: " + p.barrio);
+    if ($("inclDir").checked && p.direccion) L.push("Dirección / referencia: " + p.direccion);
     L.push("Experiencia como guardia: " + yn(p.trabajo_guardia), "Movilidad propia: " + yn(p.movilidad_propia), "Educación: " + p.educacion, "Disponibilidad: " + p.disponibilidad);
     if ((p.empresas_anteriores || []).length) L.push("Empresas anteriores: " + p.empresas_anteriores.join(", "));
     if ($("inclAnt").checked) L.push("Antecedentes penales: " + (p.sin_antecedentes ? "Libre" : "No libre") + " (declarado por el postulante, no verificado)");
@@ -318,6 +320,7 @@
         + '<div class="head"><div class="tag">Ficha de postulante</div><h2>' + esc(fullName(p)) + '</h2><div class="sub">' + esc(ageCity) + "</div></div>"
         + "<dl>"
         + (p.barrio ? "<dt>Barrio / zona</dt><dd>" + esc(p.barrio) + "</dd>" : "")
+        + (p.direccion ? "<dt>Dirección</dt><dd>" + esc(p.direccion) + "</dd>" : "")
         + "<dt>Experiencia como guardia</dt><dd>" + yn(p.trabajo_guardia) + "</dd>"
         + "<dt>Movilidad propia</dt><dd>" + yn(p.movilidad_propia) + "</dd>"
         + "<dt>Educación</dt><dd>" + esc(p.educacion) + "</dd>"
@@ -342,7 +345,7 @@
   }
   $("more").addEventListener("click", function () { limit += PAGE; render(); });
 
-  ["q", "city", "barrio", "avail", "edu", "when", "noEmp", "fMov", "fExp", "fAnt", "inclPhone", "inclAnt", "inclCed"].forEach(function (id) {
+  ["q", "city", "barrio", "avail", "edu", "when", "noEmp", "fMov", "fExp", "fAnt", "inclPhone", "inclAnt", "inclCed", "inclDir"].forEach(function (id) {
     $(id).addEventListener(id === "q" ? "input" : "change", function () {
       if (id === "city") llenarBarrios();
       limit = PAGE; render();
@@ -409,7 +412,7 @@
 
   // ---------- CSV ----------
   $("csv").addEventListener("click", function () {
-    var cols = ["creado_en", "nombres", "apellidos", "cedula", "edad", "telefono", "departamento", "ciudad", "barrio", "trabajo_guardia", "movilidad_propia", "educacion", "sin_antecedentes", "disponibilidad", "empresas_anteriores"];
+    var cols = ["creado_en", "nombres", "apellidos", "cedula", "edad", "telefono", "departamento", "ciudad", "barrio", "direccion", "trabajo_guardia", "movilidad_propia", "educacion", "sin_antecedentes", "disponibilidad", "empresas_anteriores"];
     var rows = [cols.join(",")].concat(people.map(function (p) {
       return cols.map(function (c) {
         var v = p[c]; if (Array.isArray(v)) v = v.join("; "); if (v == null) v = "";
