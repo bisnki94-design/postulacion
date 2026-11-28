@@ -393,7 +393,8 @@
     var d = {
       t: Date.now(), nombre: fullName(p), cel: p.telefono || "", ci: p.cedula || "", edad: p.edad,
       ciu: p.ciudad || "", bar: p.barrio || "", dir: p.direccion || "",
-      educacion: p.educacion || "", empresas: p.empresas_anteriores || []
+      educacion: p.educacion || "", empresas: p.empresas_anteriores || [],
+      guardia: !!p.trabajo_guardia, movil: !!p.movilidad_propia, disp: p.disponibilidad || ""
     };
     try { localStorage.setItem("gp_cv_prefill", JSON.stringify(d)); }
     catch (e) { toast("Este navegador no deja pasar los datos. Abrí el generador y cargalos a mano."); return; }

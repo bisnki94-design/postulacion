@@ -155,6 +155,7 @@
     <div class="card">
       <h2>Perfil</h2>
       <div class="f"><label for="perfil">Presentación <span class="hint">(podés cambiarla)</span></label><textarea id="perfil"></textarea></div>
+      <button type="button" class="btn small" id="otroPerfil">Probar otro texto</button>
     </div>
 
     <div class="card">
@@ -239,10 +240,27 @@
     return "";
   }
 
+  var PERFILES = [
+    "Soy una persona{ed} responsable y puntual, con disposición para el trabajo en equipo y por objetivos. Me caracterizo por mi compromiso, el respeto a las normas y la capacidad de adaptación a las exigencias del puesto.",
+    "Soy una persona{ed} seria y comprometida con su trabajo. Valoro la puntualidad, la honestidad y el respeto hacia compañeros y superiores, y me adapto con facilidad a distintas tareas y horarios.",
+    "Soy una persona{ed} de confianza, atenta y con sentido de la responsabilidad. Cumplo las consignas con disciplina, cuido lo que me confían y trabajo bien tanto en equipo como de forma independiente.",
+    "Me considero una persona{ed} disciplinada, puntual y respetuosa. Mantengo la calma ante situaciones difíciles, me comunico con claridad y busco hacer mi trabajo de manera ordenada y segura.",
+    "Soy una persona{ed} con buena predisposición, honesta y trabajadora. Me interesa aportar a una empresa con compromiso, buen trato con las personas y cumplimiento de los horarios."
+  ];
+  var perfilIdx = Math.floor(Math.random() * PERFILES.length);
+  var extra = {}; // datos de la ficha del panel: guardia (true/false), movil (true/false), disp (Diurno/Nocturno/Rotativo)
   function perfilBase() {
     var e = parseInt($("edad").value, 10);
-    var ed = e > 0 ? "de " + e + " años, " : "";
-    return "Soy una persona " + ed + "responsable y puntual, con disposición para el trabajo en equipo y por objetivos. Me caracterizo por mi compromiso, el respeto a las normas y la capacidad de adaptación a las exigencias del puesto.";
+    var ed = e > 0 ? " de " + e + " años," : "";
+    var t = PERFILES[perfilIdx % PERFILES.length].replace("{ed}", ed);
+    var conTrabajo = jobs.some(function (j) { return j.empresa.trim(); });
+    if (extra.guardia === true || conTrabajo) t += " Cuento con experiencia como guardia de seguridad.";
+    else if (extra.guardia === false) t += " Tengo muchas ganas de aprender y de desarrollarme en el rubro de la seguridad.";
+    if (extra.movil === true) t += " Cuento con movilidad propia.";
+    if (extra.disp === "Diurno") t += " Tengo disponibilidad para el turno diurno.";
+    else if (extra.disp === "Nocturno") t += " Tengo disponibilidad para el turno nocturno.";
+    else if (extra.disp === "Rotativo") t += " Tengo disponibilidad para turnos rotativos.";
+    return t;
   }
   function edadDesdeFecha() {
     var f = $("nac").value; if (!f) return;
@@ -276,6 +294,7 @@
       jobs[+i].actual = t.checked;
       [].slice.call(t.closest(".job").querySelectorAll('select[data-k="hm"],select[data-k="ha"]')).forEach(function (s) { s.disabled = t.checked; });
     } else jobs[+i][t.getAttribute("data-k")] = t.value;
+    if (t.getAttribute("data-k") === "empresa" && !perfilEditado) $("perfil").value = perfilBase();
     dibujar();
   });
   $("jobs").addEventListener("click", function (e) {
@@ -365,8 +384,13 @@
     });
   });
 
+  $("otroPerfil").addEventListener("click", function () {
+    perfilIdx = (perfilIdx + 1) % PERFILES.length; perfilEditado = false; $("perfil").value = perfilBase(); dibujar();
+  });
+
   $("reset").addEventListener("click", function () {
     CAMPOS.forEach(function (id) { $(id).value = ""; });
+    extra = {}; perfilIdx = Math.floor(Math.random() * PERFILES.length);
     $("nacion").value = "Paraguaya"; perfilEditado = false; $("perfil").value = perfilBase();
     $("prefillNote").hidden = true;
     jobs = [nuevoTrabajo()]; refs = [nuevaRef()]; dibujarJobs(); dibujarRefs(); dibujar(); window.scrollTo({ top: 0, behavior: "smooth" });
@@ -392,7 +416,11 @@
     put("nombre", d.nombre, 80); put("cel", d.cel, 20); put("ci", d.ci, 12);
     put("ciu", d.ciu, 60); put("bar", d.bar, 60); put("dir", d.dir, 200);
     var e = parseInt(d.edad, 10); if (e > 0 && e < 100) $("edad").value = e;
-    perfilEditado = false; $("perfil").value = perfilBase();
+    extra = {
+      guardia: typeof d.guardia === "boolean" ? d.guardia : undefined,
+      movil: typeof d.movil === "boolean" ? d.movil : undefined,
+      disp: ["Diurno", "Nocturno", "Rotativo"].indexOf(d.disp) > -1 ? d.disp : undefined
+    };
 
     var emp = (Array.isArray(d.empresas) ? d.empresas : []).filter(function (n) {
       var k = String(n || "").trim().toLowerCase(); return k && k !== "ninguna" && k !== "otra";
@@ -401,6 +429,7 @@
       jobs = emp.map(function (n) { var j = nuevoTrabajo(); j.empresa = String(n).slice(0, 80); return j; });
       dibujarJobs();
     }
+    perfilEditado = false; $("perfil").value = perfilBase();
 
     var n = $("prefillNote"), t = "";
     t += "<b>Datos cargados desde la ficha de " + esc(String(d.nombre || "").slice(0, 80)) + ".</b>";
